@@ -1,0 +1,205 @@
+#!/bin/bash
+
+. /opt/deploy/deploy.conf
+
+stat_sess(){
+    #list status session from number
+    #echo $sess_name
+
+    if [ -f ${scr_out}/${sess_name} ];then
+        screen -ls| grep $sess_name >/dev/null 2>&1
+        if [ $? -eq 0 ];then
+            st="R"
+        else
+            st=`cat ${scr_out}/${sess_name}| tail -1| awk -F ":" '{print $NF}'`
+        fi
+    else
+        st="N"
+    fi
+    #output
+    if [ ${CSV} == true ]&&[ ${stat_shadow} == false ];then
+        echo "$sess_name${_C_}$st"
+    elif [ ${CSV} == false ]&&[ ${stat_shadow} == false ];then
+        echo "Screen session number $sess_name status is $st"
+    fi
+    }
+
+log_sess() {
+    # remove session log from number
+    #echo $sess_name
+
+    if [ ${detail} == true ];then
+        stat_shadow=false
+    else
+        stat_shadow=true
+    fi
+    stat_sess
+    if [ "$st" != "N" ];then
+        cat ${scr_out}/${sess_name}|grep -v ^"SCREEN_CMD:"|grep -v ^"SCREEN_EXIT:"
+    else
+        echo "Screen session number $sess_name not found"
+        echo "FAIL" >/dev/stderr
+        exit 1
+    fi
+    }
+
+cmd_sess() {
+    # remove session log from number
+    #echo $sess_name
+
+    if [ ${detail} == true ];then
+        stat_shadow=false
+    else
+        stat_shadow=true
+    fi
+    stat_sess
+    if [ "$st" != "N" ];then
+        cat ${scr_out}/${sess_name}|grep ^"SCREEN_CMD:"|awk -F ":" '{print $2}'
+    else
+        echo "Screen session number $sess_name not found"
+        echo "FAIL" >/dev/stderr
+        exit 1
+    fi
+    }
+
+rm_sess() {
+    # remove session log from number
+    #echo $sess_name
+
+    stat_shadow=true
+    stat_sess
+    if [ "$st" == "N" ];then
+        echo "Screen session number $sess_name not found"
+        echo "FAIL" >/dev/stderr
+        exit 1
+    fi
+    if [ "$st" == "R" ];then
+        echo "Screen session number $sess_name is run"
+        echo "LOCK" >/dev/stderr
+        exit 2
+    fi
+    #remove session
+    rm ${scr_out}/${sess_name}
+    if [ $? -ne 0 ];then
+        echo "Remove $sess_name session error"
+        echo "FAIL" >/dev/stderr
+        exit 1
+    else
+        exit 0
+    fi
+    }
+
+stat_all() {
+    #list status all screen sessions
+
+    for sess_name in $(ls -1 ${scr_out})
+    do
+        if [ ${detail} == true ];then
+            log_sess
+        else
+            stat_sess
+        fi
+    done
+    }
+
+usage() { 
+    # help kommand keys
+    echo "Usage: $0 [-S]...| -n <session number> & [-c|-l] ..[-r]..[-s]]...[ -C]..[ -v]"
+    echo "-S - view all status screen sessions and ignore every key"
+    echo "-n <session number> - number session"
+    echo "-c  - view session command from number"
+    echo "-l  - view session output log from number"
+    echo "-s  - status session from number"
+    echo "-r  - remove complited session from number"
+    echo "-C - CSV output"
+    echo "-v - detail output"
+    echo "-h help"
+    }
+
+# getops for command keys
+S=false
+c=false
+l=false
+s=false
+r=false
+C=false
+v=false
+while getopts ":n:h S n c l s r C v" o; do
+    case "${o}" in
+        n)
+            n=${OPTARG}
+            ;;
+        h)
+            usage
+            exit 0
+            ;;
+        S)
+            S=true
+            ;;
+        c)
+            c=true
+            ;;
+        l)
+            l=true
+            ;;
+        s)
+            s=true
+            ;;
+        r)
+            r=true
+            ;;
+        C)
+            C=true
+            ;;
+        v)
+            v=true
+            ;;
+        *)
+            usage
+            echo "FAIL" >/dev/stderr
+            exit 1
+            ;;
+    esac
+done
+
+#run commands from keys
+CSV=${C}
+detail=${v}
+stat_shadow=false
+if [ "${S}" == true ];then
+    stat_all
+    exit 0
+elif [ -n "${n}" ];then
+    sess_name=${n}
+    t_com=false
+
+    if [ ${s} == true ];then
+        stat_sess
+        t_com=true
+    fi
+
+    if [ "${c}" == true ]&&[ "${l}" == false ];then
+        cmd_sess
+        t_com=true
+    elif [ "${c}" == false ]&&[ "${l}" == true ];then
+        log_sess
+        t_com=true
+    fi
+
+    if [ "${r}" == true ];then
+        rm_sess
+        t_com=true
+    fi
+
+    if [ ${t_com} == false ];then
+        stat_sess
+    fi
+    exit 0
+else
+    usage
+    echo "FAIL" >/dev/stderr
+    exit 1
+fi
+
+usage
+exit 0

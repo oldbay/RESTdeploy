@@ -1,0 +1,16 @@
+#! /bin/bash
+
+. /opt/deploy/deploy.conf
+
+cmd="$@"
+
+scr_nam=`date +%s%N`
+scr_log="${scr_out}/${scr_nam}"
+screen -S $scr_nam -d -m bash -c "echo SCREEN_CMD:$cmd >$scr_log;$cmd >>$scr_log;echo SCREEN_EXIT:\$? >>$scr_log"
+if [ $? -eq 0 ];then
+    echo $scr_nam
+    exit 0
+else
+    echo "FAIL" >/dev/stderr
+    exit 1
+fi

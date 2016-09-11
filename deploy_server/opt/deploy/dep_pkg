@@ -1,0 +1,630 @@
+#!/bin/bash
+
+. /opt/deploy/deploy.conf
+
+test_lock(){
+    #test lock process from pid file, send variable "unlock"
+    #echo $pid_file
+
+    unlock=false
+    for step in $(seq 1 $lock_time)
+    do
+        if [ ! -f $pid_file ];then
+            echo $$ > $pid_file
+            unlock=true
+            break
+        else
+            sleep 1
+        fi
+    done
+    if [ "${unlock}" == false ];then
+        lock_pid=`cat $pid_file`
+        echo "ERROR: Process $(echo ${pid_file}|awk -F "/" '{print $NF}') lock in pid ${lock_pid} of ${lock_time} second"
+    fi
+    }
+
+dig2arch(){
+    #Parse digit to arch
+    #echo $dig
+
+    case ${dig} in
+        32)
+            pkg_arch="x86"
+            repo_ver="i386"
+            chroot_dig="/usr/bin/linux32 /bin/chroot"
+            ;;
+        64)
+            pkg_arch="x86_64"
+            repo_ver="amd64"
+            chroot_dig="/usr/bin/linux64 /bin/chroot"
+            ;;
+        *)
+            echo "ERROR: Intel architecture digit ${a} is not supportet"
+            usage
+            echo "FAIL" >/dev/stderr
+            exit 1
+            ;;
+    esac
+    }
+
+git_clone_up(){
+    #Cloning or updating source package from git repozitory
+    #echo "git_clone_up"
+    #echo $git_link
+    #echo $pkg_name
+    #echo $pid_file
+    #echo $log_file
+
+    test_lock
+    if [ ${unlock} == false ];then
+        echo "LOCK" >/dev/stderr
+        exit 2
+    fi
+
+    if [ -d ${root_git}/${pkg_name} ];then
+        echo "WARNING: Source catalog ${pkg_name} is found, use \"git pull\""
+        cd ${root_git}/${pkg_name}
+        git pull >>$log_file 2>&1
+        if [ $? -eq 0 ];then
+            echo "OK: \"git pull ${pkg_name}\" complite"
+            rm $pid_file
+            exit 0
+        else
+            echo "ERROR: \"git pull ${pkg_name}\" failed"
+            rm $pid_file
+            echo "FAIL" >/dev/stderr
+            exit 1
+        fi
+    else
+        cd $root_git
+        git clone $git_link >>$log_file 2>&1
+        if [ $? -eq 0 ];then
+            echo "OK: \"git clone ${git_link}\" to source catalog \"${pkg_name}\" complite"
+            rm $pid_file
+            exit 0
+        else
+            echo "EROOR: \"git clone ${git_link}\" failed"
+            rm $pid_file
+            echo "FAIL" >/dev/stderr
+            exit 1
+        fi
+    fi
+    }
+
+
+pkg_build_end(){
+    if [ -f ${pid_file} ];then
+        if [ "$(cat ${pid_file})" == "$$" ];then rm $pid_file; fi
+    fi
+    down_pkg_dir=${down_dir}/${pkg_name}/${pkg_arch}/${pkg_num_ver}
+    mkdir -p $down_pkg_dir
+    #mv log file to download directory
+    if [ -f ${log_file} ];then 
+        dep_log_name=${pkg_name}_${pkg_num_ver}_${repo_ver}.deploy.log
+        mv ${log_file} ${down_pkg_dir}/${dep_log_name}
+        echo "FILE_OUT:$pkg_name${_C_}${pkg_num_ver}${_C_}${pkg_arch}${_C_}${dep_log_name}"
+    fi
+    #cp all file from build catalog to dowload directory
+    cd ${cont_build}/${cat_build}
+    all_bld_files=`find * -maxdepth 0 -type f`
+    for bld_file in $all_bld_files
+    do
+        cp ${cont_build}/${cat_build}/${bld_file} ${down_pkg_dir}
+        echo "FILE_OUT:$pkg_name${_C_}${pkg_num_ver}${_C_}${pkg_arch}${_C_}${bld_file}"
+    done
+    cd /mnt
+    rm -rf ${cont_build}/${cat_build}/*
+    ${cont_util} -n ${pkg_name} -a ${dig} -d
+    rm $pkg_build_pid
+    }
+
+
+pkg_build(){
+    #Build package from name, versin and arcitecture
+    #echo $pkg_name
+    #echo $pkg_ver
+    #echo $pkg_num_ver
+    #echo $dig
+    #echo $chroot_dig
+    #echo $pkg_arch
+    #echo $cat_src
+    #echo $cont_build
+    #echo $cat_build
+    #echo $pid_file
+    #echo $log_file
+
+    test_lock
+    if [ ${unlock} == false ];then
+        echo "LOCK" >/dev/stderr
+        exit 2
+    fi
+    pkg_build_pid=$pid_file
+
+    # start container
+    ${cont_util} -n ${pkg_name} -a ${dig} -c -u >$log_file 2>&1
+    if [ $? -eq 0 ];then
+        echo "BUILD OK: Build container create"
+    else
+        echo "BUILD ERROR: Build contaiber not create"
+        rm $pkg_build_pid
+        echo "FAIL" >/dev/stderr
+        exit 1
+    fi
+
+    #test lock from source
+    pid_file=${dep_pid_cat}/${pid_pref}-${pkg_name}.pid
+    test_lock
+
+    if [ ${unlock} == true ]&&[ -d ${cat_src} ]&&[ -d ${cont_build}/${cat_build} ];then 
+        #BUILD
+        cat_pkg_build=${cat_build}/${pkg_name}
+        #1) Copy source
+        cp -fr ${cat_src} ${cont_build}/${cat_build}
+        if [ $? -eq 0 ];then
+            echo "BUILD OK: Copy source code to build container complete"
+            rm $pid_file
+        else
+            echo "BUILD ERROR: Copy source code to build container not complete"
+            pkg_build_end
+            echo "FAIL" >/dev/stderr
+            exit 1
+        fi
+        #2) Checkout source to version tag
+        if [ "${pkg_ver}" != "git" ];then
+            cmd="git checkout tags/${pkg_ver} -b build"
+            $chroot_dig $cont_build /bin/bash -c "cd ${cat_pkg_build} && ${cmd}">>$log_file 2>&1
+            if [ $? -eq 0 ];then
+                echo "BUILD OK: Checkout source to version tag \"${pkg_ver}\" complete"
+            else
+                echo "BUILD ERROR: Checkout source to version tag \"${pkg_ver}\" not complete"
+                pkg_build_end
+                echo "FAIL" >/dev/stderr
+                exit 1
+            fi
+        else
+            echo "BUILD OK: Select last version source code"
+        fi
+        #3) Install depen
+        cmd="apt-get update"
+        $chroot_dig $cont_build /bin/bash -c "${cmd}">>$log_file 2>&1
+        cmd="mk-build-deps -i -r -t \"apt-get -y --no-install-recommends\""
+        $chroot_dig $cont_build /bin/bash -c "cd ${cat_pkg_build} && ${cmd}">>$log_file 2>&1
+        if [ $? -eq 0 ];then
+            echo "BUILD OK: Intsall depends is complete"
+        else
+            echo "BUILD ERROR: Intsall depends not complete"
+            pkg_build_end
+            echo "FAIL" >/dev/stderr
+            exit 1
+        fi
+        #4) Build package
+        cmd="git-buildpackage -us -uc --git-ignore-new --git-upstream-tree=build"
+        $chroot_dig $cont_build /bin/bash -c "cd ${cat_pkg_build} && ${cmd}">>$log_file 2>&1
+        if [ $? -eq 0 ];then
+            echo "BUILD OK: Build package is complete"
+            pkg_build_end
+        else
+            echo "BUILD ERROR: Build package not complete"
+            pkg_build_end
+            echo "FAIL" >/dev/stderr
+            exit 1
+        fi
+    else
+        echo "BUILD ERROR: Default settings not found"
+        pkg_build_end
+        if [ ${unlock} == false ];then
+            echo "LOCK" >/dev/stderr
+            exit 2
+        else
+            echo "FAIL" >/dev/stderr
+            exit 1
+        fi
+    fi
+    }
+
+pkg_rm(){
+    #Remove build container from name and archirecture
+    #echo $pkg_name
+    #echo $pkg_arch
+    #echo $pkg_num_ver
+    #echo $pid_file
+    #echo $log_file
+    #echo $all_rm_pid
+
+    test_lock
+    if [ ${unlock} == false ];then
+        if [ -n $all_rm_pid ];then rm $all_rm_pid; fi
+        echo "LOCK" >/dev/stderr
+        exit 2
+    fi
+
+    if [ -z $pkg_num_ver ];then
+        ${cont_util} -n ${pkg_name} -a ${dig} -r >$log_file 2>&1 &&\
+        rm -rf ${down_dir}/${pkg_name}/${pkg_arch} >>$log_file 2>&1
+        err=$?
+    else
+        rm -rf ${down_dir}/${pkg_name}/${pkg_arch}/${pkg_num_ver} >>$log_file 2>&1
+        err=$?
+    fi
+    if [ $err -eq 0 ];then
+        if [ -z $pkg_num_ver ];then
+            echo "REMOVE OK: Container and packages from \"${pkg_name}\", architeckture \"${pkg_arch}\" has removed"
+        else
+            echo "REMOVE OK: Packages from \"${pkg_name}\", architeckture \"${pkg_arch}\", version \"${pkg_num_ver}\" has removed"
+        fi
+        rm $pid_file
+    else
+        if [ -z $pkg_num_ver ];then
+            echo "REMOVE ERROR: Container and packages from \"${pkg_name}\", architeckture \"${pkg_arch}\" not removed"
+        else
+            echo "REMOVE ERROR: Packages from \"${pkg_name}\", architeckture \"${pkg_arch}\", version \"${pkg_num_ver}\" not removed"
+        fi
+        rm $pid_file
+        if [ -n $all_rm_pid ];then rm $all_rm_pid; fi
+        echo "FAIL" >/dev/stderr
+        exit 1
+    fi
+    }
+
+all_rm_name(){
+    #Remove source and build containers from name
+    #echo $pkg_name
+    #echo $cat_src
+    #echo $all_digs
+    #echo $pid_file
+    #echo $log_file
+
+    test_lock
+    if [ ${unlock} == true ];then
+        all_rm_pid=$pid_file
+        all_rm_log=$log_file
+    else
+        echo "LOCK" >/dev/stderr
+        exit 2
+    fi
+    # sorting digit container for remove
+    for dig in $all_digs
+    do
+        dig2arch
+        pid_file=${dep_pid_cat}/${pid_pref}-${pkg_name}-${pkg_arch}.pid
+        prefix="R"
+        log_file=${dep_log_cat}/${prefix}-${pkg_name}-${pkg_arch}.log
+        pkg_rm
+    done
+    # remove source directory
+    if [ -d ${cat_src} ];then
+        rm -rf ${cat_src}
+        if [ $? -eq 0 ];then
+            echo "REMOVE OK: Build containers and Source catalog for \"${pkg_name}\" is removed"
+            rm $all_rm_pid
+            exit 0
+        else
+            rm $all_rm_pid
+            echo "REMOVE ERROR: Build containers and Source catalog for \"${pkg_name}\" not removed"
+            echo "FAIL" >/dev/stderr
+            exit 1
+        fi
+    else
+        echo "REMOVE WARNING: Source catalog for \"${pkg_name}\" not found"
+        rm $all_rm_pid
+        exit 0
+    fi
+    }
+
+stat_build(){
+    #Status build from package container
+    #echo $pkg_name
+    #echo $dig
+    #echo $csv_cont
+
+    if [ -z $csv_cont ];then
+        csv_cont=`${cont_util} -n ${pkg_name} -a ${dig} -s -C`
+    fi
+    pkg_name=`echo $csv_cont|awk -F "${_C_}" '{print $1}'`
+    pkg_arch=`echo $csv_cont|awk -F "${_C_}" '{print $3}'`
+    cont_cr=`echo $csv_cont|awk -F "${_C_}" '{print $4}'`
+    cont_up=`echo $csv_cont|awk -F "${_C_}" '{print $5}'`
+
+    if [ "${cont_cr}" == "C" ]&&[ "${cont_up}" == "U" ];then
+        cont_stat="Container UP"
+        csv_cont_stat="U"
+        if [ -f ${dep_pid_cat}/${pid_pref}-${pkg_name}-${pkg_arch}.pid ];then
+            build_stat="Building RUN"
+            csv_build_stat="R"
+            log_temp="B-${pkg_name}-${pkg_arch}-"
+            build_ver=`ls -1 ${dep_log_cat}| grep ^${log_temp}|awk -F "-" '{print $4}'`
+        else
+            build_stat="Building NOT Run"
+            csv_build_stat="N"
+            build_ver=""
+        fi
+    elif [ "${cont_cr}" == "C" ]&&[ "${cont_up}" == "D" ];then
+        cont_stat="Container DOWN"
+        csv_cont_stat="D"
+        build_stat="Building NOT Posible"
+        csv_build_stat=""
+        build_ver=""
+    elif [ "${cont_cr}" == "N" ];then
+        cont_stat="Container FAIL"
+        csv_cont_stat="F"
+        build_stat="Building NOT Posible"
+        csv_build_stat=""
+        build_ver=""
+    fi
+
+    if [ "${CSV}" == true ];then
+        echo "${pkg_name}${_C_}${build_ver}${_C_}${pkg_arch}${_C_}${csv_cont_stat}${_C_}${csv_build_stat}${_C_}"
+    else
+        echo "Package \"${pkg_name}\" in architecture ${pkg_arch} build status: ${cont_stat}, ${build_stat} $(if [ "${build_ver}" != "" ];then  echo "in version ${build_ver}"; fi)"
+    fi
+    }
+
+all_stat_build(){
+    #View status all buildings
+
+    csv_all_cont=`${cont_util} -S -C`
+    for csv_cont in $csv_all_cont
+    do
+        if [ "$(echo ${csv_cont}|awk -F "${_C_}" '{print $1}')" != "" ];then
+            stat_build
+        fi
+    done
+    }
+
+stat_pkgs(){
+    #Statisctic packages from source
+    #echo $pkg_name
+    #echo $cat_src
+
+    pid_file=${dep_pid_cat}/${pid_pref}-${pkg_name}.pid
+    test_lock
+    if [ ${unlock} == false ];then
+        echo "LOCK" >/dev/stderr
+        exit 2 
+    fi
+
+    if [ -d $cat_src ];then
+        #test last git version
+        tag="git"
+        find ${cat_src} | grep -v ^${cat_src}$ | grep -v ^${cat_src}/.git | grep ^${cat_src}/debian >/dev/null 2>&1
+        if [ $? -eq 0 ];then
+            find ${cat_src} | grep -v ^${cat_src}$ |grep -v ^${cat_src}/.git | grep -v ^${cat_src}/debian >/dev/null 2>&1
+            if [ $? -eq 0 ];then
+                if [ ${CSV} == true ];then
+                    echo "${pkg_name}${_C_}${tag}${_C_}"
+                else
+                    echo $tag
+                fi
+            fi
+        fi
+        #test version from git tag
+        cd ${cat_src}
+        git_tags=`git tag`
+        if [ $? -ne 0 ];then
+            echo "ERROR: Directory \"${pkg_name}\" is not valid git catalog"
+        else
+            for tag in $git_tags
+            do
+                git ls-tree --name-only -r tags/$tag | grep ^debian/ >/dev/null 2>&1
+                if [ $? -eq 0 ];then
+                    git ls-tree --name-only -r tags/$tag | grep -v ^debian/ >/dev/null 2>&1
+                    if [ $? -eq 0 ];then
+                        if [ ${CSV} == true ];then
+                            echo "${pkg_name}${_C_}${tag}${_C_}"
+                        else
+                            echo $tag
+                        fi
+                    fi
+                fi
+            done
+        fi
+    else
+        echo "ERROR: Directory \"${pkg_name}\" not found"
+    fi
+    rm $pid_file
+    }
+
+all_stat_pkgs(){
+    #View statistic all packages
+    #echo $pkg_ver
+
+    for pkg_name in `ls -1 ${root_git}`
+    do
+        cat_src="${root_git}/${pkg_name}"
+        echo "${pkg_name}$(if [ ${CSV} == true ];then echo "${_C_}";fi)"
+        if [ "${view_ver}" == true ];then
+            if [ ${CSV} == false ];then echo "----------------------";fi
+            stat_pkgs
+            if [ ${CSV} == false ];then echo "----------------------";fi
+        fi
+    done
+    }
+
+
+usage() { 
+    # help kommand keys
+    echo "Usage: $0 [-B]|[-P & -V]|[-g <git link>]|[-R <source>]|[[-n <sorce name> & -v <version|git> & -a <architecture>]...[-B]...[-R|-r]...[-b|-p]]...[-C]"
+    echo "-S - view status all buildings and ignore every key"
+    echo "-P - view statistic all packages and ignore every key"
+    echo "-V - view versions packages from -P "
+    echo "-g <git link> create new source catalog from git link"
+    echo "-n <package name>"
+    echo "-v <version package from git tag|git commit of last>"
+    echo "-a <intel architecture digit: 32 or 64>"
+    echo "-B - build package from name, versin and arcitecture"
+    echo "-R - remove source catalog and build containers from name"
+    echo "-r - remove build container and binary packages from name, (version) and architecture"
+    echo "-s - status build from package container (name and architecture)"
+    echo "-p - statisctic packages from source name"
+    echo "-C - CSV output"
+    echo "-h help"
+    }
+
+# getops for command keys
+S=false
+P=false
+V=false
+B=false
+R=false
+r=false
+s=false
+p=false
+C=false
+while getopts ":g:n:v:a:h S P V B R r s p C" o; do
+    case "${o}" in
+        g)
+            g=${OPTARG}
+            ;;
+        n)
+            n=${OPTARG}
+            ;;
+        v)
+            v=${OPTARG}
+            ;;
+        a)
+            a=${OPTARG}
+            ;;
+        h)
+            usage
+            exit 0
+            ;;
+        S)
+            S=true
+            ;;
+        P)
+            P=true
+            ;;
+        V)
+            V=true
+            ;;
+        B)
+            B=true
+            ;;
+        R)
+            R=true
+            ;;
+        r)
+            r=true
+            ;;
+        s)
+            s=true
+            ;;
+        p)
+            p=true
+            ;;
+        C)
+            C=true
+            ;;
+        *)
+            usage
+            echo "FAIL" >/dev/stderr
+            exit 1
+            ;;
+    esac
+done
+
+#run commands from keys
+all_digs="32 64"
+CSV=${C}
+if [ "${S}" == true ];then
+    all_stat_build
+    exit 0
+elif [ "${P}" == true ];then
+    view_ver=${V}
+    all_stat_pkgs
+    exit 0
+elif [ -n "${g}" ];then
+    #select git link
+    git_link=${g}
+    pkg_name=`echo $git_link|awk -F "/" '{print $NF}'|awk -F "." '{print $1}'`
+    prefix="G"
+    pid_file=${dep_pid_cat}/${pid_pref}-${pkg_name}.pid
+    log_file=${dep_log_cat}/${prefix}-${pkg_name}.log
+    git_clone_up
+elif [ "${p}" == true ]&&[ -n "${n}" ]&&[ -z "${a}" ]&&[ -z "${v}" ];then
+    #info of packages from source code
+    pkg_name=${n}
+    cat_src=${root_git}/${pkg_name}
+    stat_pkgs
+    exit 0
+elif [ "${R}" == true ]&&[ -n "${n}" ]&&[ -z "${a}" ]&&[ -z "${v}" ];then
+    #remove all: source from git and build containers
+    pkg_name=${n}
+    cat_src=${root_git}/${pkg_name}
+    prefix="R"
+    pid_file=${dep_pid_cat}/${pid_pref}-${pkg_name}.pid
+    log_file=${dep_log_cat}/${prefix}-${pkg_name}.log
+    all_rm_name
+elif [ "${s}" == true ]&&[ -n "${n}" ]&&[ -n "${a}" ]&&[ -z "${v}" ];then
+    #view status build package from name & architecture
+    pkg_name=${n}
+    dig=${a}
+    stat_build
+    exit 0
+elif [ "${r}" == true ]&&[ -n "${n}" ]&&[ -n "${a}" ]&&[ -z "${v}" ];then
+    #remove container from name and architecture
+    pkg_name=${n}
+    dig=${a}
+    dig2arch
+    prefix="R"
+    pid_file=${dep_pid_cat}/${pid_pref}-${pkg_name}-${pkg_arch}.pid
+    log_file=${dep_log_cat}/${prefix}-${pkg_name}-${pkg_arch}.log
+    pkg_rm
+    exit 0
+elif [ -n "${n}" ]&&[ -n "${v}" ]&&[ -n "${a}" ];then
+    #setting values
+    pkg_name=${n}
+    pkg_ver=${v}
+    pkg_num_ver=`echo ${pkg_ver}|awk -F "/" '{print $NF}'`
+    dig=${a}
+    dig2arch
+    cat_src=${root_git}/${pkg_name}
+    cont_build=${root_cont}/${pkg_arch}-repo/cont_activ/${pkg_name}
+    #test command
+    t_com=false
+    #select remove
+    if [ "${r}" == true ];then
+        prefix="R"
+        pid_file=${dep_pid_cat}/${pid_pref}-${pkg_name}-${pkg_arch}.pid
+        log_file=${dep_log_cat}/${prefix}-${pkg_name}-${pkg_arch}.log
+        pkg_rm
+        t_com=true
+    fi
+    #select build
+    if [ "${B}" == true ];then
+        prefix="B"
+        pid_file=${dep_pid_cat}/${pid_pref}-${pkg_name}-${pkg_arch}.pid
+        log_file=${dep_log_cat}/${prefix}-${pkg_name}-${pkg_arch}-${pkg_num_ver}-.log
+        pkg_build
+        t_com=true
+    fi
+    #view status build package
+    if [ "${s}" == true ];then
+        stat_build
+        t_com=true
+    fi
+    #view statistic package from source
+    if [ "${p}" == true ];then
+        stat_pkgs
+        t_com=true
+    fi
+    #view all statistic
+    if [ "${t_com}" == false ];then
+        echo "-----------------"
+        echo "INFO:Status build"
+        echo "-----------------"
+        stat_build
+        echo "-------------------------------"
+        echo "INFO:Statistic packages version"
+        echo "-------------------------------"
+        stat_pkgs
+    fi
+    exit 0
+else
+    usage
+    echo "FAIL" >/dev/stderr
+    exit 1
+fi
+
+usage
+exit 0

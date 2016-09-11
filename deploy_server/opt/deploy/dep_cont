@@ -1,0 +1,315 @@
+#!/bin/bash
+
+. /opt/deploy/deploy.conf
+
+cont_create() { 
+    #create container dir
+
+    if [ -d ${cont_dir} ];then
+        echo "WARNING: Conainer ${cont_name} ${cont_arch} already created"
+    else
+        mkdir $cont_dir
+        if [ $? -eq 0 ];then
+            echo "CREATE OK: Container ${cont_name} ${cont_arch} is now created"
+        else
+            echo "CREATE FAIL: Container ${cont_name} ${cont_arch} is not created"
+            echo "FAIL" >/dev/stderr
+            exit 1
+        fi
+    fi
+    }
+
+cont_remove() {
+    #remove container dir
+    if [ -d ${cont_dir} ];then
+        mount | grep ${cont_activ_dir} >/dev/null 2>&1
+        if [ $? -eq 0 ];then
+            echo "REMOVE ERROR: Container ${cont_name} ${cont_arch} already use"
+            echo "FAIL" >/dev/stderr
+            exit 1
+        else
+            rm -rf ${cont_dir}
+            if [ $? -eq 0 ];then
+                echo "REMOVE OK: Container ${cont_name} ${cont_arch} removed"
+            else
+                echo "REMOVE FAIL: Container ${cont_name} ${cont_arch} is not removed"
+                echo "FAIL" >/dev/stderr
+                exit 1
+            fi
+        fi
+    else
+        echo "WARNING: Container ${cont_name} ${cont_arch} not found"
+    fi
+    }
+
+cont_up() {
+    #Up container
+    if [ -d ${cont_dir} ];then
+        mount | grep ${cont_activ_dir} >/dev/null 2>&1
+        if [ $? -eq 0 ];then
+            echo "WARNING: Container ${cont_name} ${cont_arch} already up"
+        else
+            mkdir ${cont_activ_dir} &&\
+            mount -t aufs -o br=${cont_dir}=rw:${cont_def}=ro none ${cont_activ_dir} &&\
+            mount --bind /dev ${cont_activ_dir}/dev &&\
+            mount --bind /tmp ${cont_activ_dir}/tmp &&\
+            mount -t proc proc ${cont_activ_dir}/proc &&\
+            mount -t sysfs sysfs ${cont_activ_dir}/sys &&\
+            mount -t devpts devpts ${cont_activ_dir}/dev/pts &&\
+            mount -t tmpfs shm ${cont_activ_dir}/dev/shm
+            if [ $? -eq 0 ];then
+                echo "UP OK: Container ${cont_name} ${cont_arch} is up"
+            else
+                echo "UP FAIL: Container ${cont_name} ${cont_arch} is not up"
+                rmdir ${cont_activ_dir}
+                echo "FAIL" >/dev/stderr
+                exit 1
+            fi
+        fi
+    else
+        echo "UP ERROR: Container ${cont_name} ${cont_arch} not found"
+        echo "FAIL" >/dev/stderr
+        exit 1
+    fi
+    }
+
+cont_down() {
+    #Down container
+    if [ -d ${cont_dir} ];then
+        mount | grep ${cont_activ_dir} >/dev/null 2>&1
+        if [ $? -eq 0 ];then
+            #umount all sys directory
+            umount ${cont_activ_dir}/dev/shm &&\
+            umount ${cont_activ_dir}/dev/pts &&\
+            umount ${cont_activ_dir}/sys &&\
+            umount ${cont_activ_dir}/proc &&\
+            umount ${cont_activ_dir}/tmp &&\
+            umount ${cont_activ_dir}/dev
+            if [ $? -ne 0 ];then
+                echo "DOWN FAIL: Container ${cont_name} ${cont_arch} is not down (not unmount sys dirs)"
+                echo "FAIL" >/dev/stderr
+                exit 1
+            fi
+            #umount root container directory
+            pids=`lsof ${cont_activ_dir} | awk '{print $2}'`
+            for pid in $pids
+            do
+                kill $pid >/dev/null 2>&1
+            done
+            umount ${cont_activ_dir}
+            if [ $? -ne 0 ];then
+                echo "DOWN FAIL: Container ${cont_name} ${cont_arch} is not down (not unmount root dir)"
+                echo "FAIL" >/dev/stderr
+                exit 1
+            fi
+            #delete container directory
+            rmdir ${cont_activ_dir}
+            if [ $? -eq 0 ];then
+                echo "DOWN OK: Container ${cont_name} ${cont_arch} is down"
+            else
+                echo "DOWN FAIL: Container ${cont_name} ${cont_arch} is not down (not delete root dir)"
+                echo "FAIL" >/dev/stderr
+                exit 1
+            fi
+        else
+            echo "WARNING: Container ${cont_name} ${cont_arch} is not up"
+            exit 0
+        fi
+    else
+        echo "DOWN ERROR: Container ${cont_name} ${cont_arch} not found"
+        echo "FAIL" >/dev/stderr
+        exit 1
+    fi
+    }
+
+cont_stat(){
+    #Status container
+    stat_up="Unknown"
+    if [ -d ${cont_dir} ];then
+        stat_cr="Created"
+        csv_stat_cr="C"
+        mount | grep ${cont_activ_dir} >/dev/null 2>&1
+        if [ $? -eq 0 ];then
+            stat_up="Up"
+            csv_stat_up="U"
+        else
+            stat_up="Down"
+            csv_stat_up="D"
+        fi
+    else
+        stat_cr="Not created"
+        csv_stat_cr="N"
+    fi
+    if [ ${CSV} == true ];then
+        echo "${cont_name}${_C_}${_C_}${cont_arch}${_C_}${csv_stat_cr}${_C_}${csv_stat_up}${_C_}"
+    else
+        echo "Container \"${cont_name}\", architecture \"${cont_arch}\" - ${stat_cr}, ${stat_up}"
+    fi
+    }
+
+full_status() { 
+    # view full status of containers
+    list_arch="x86 x86_64"
+    for cont_arch in $list_arch
+    do
+        if [ ${CSV} == true ];then
+            echo "${_C_}${_C_}${cont_arch}${_C_}"
+        else
+            echo "----------------------"
+            echo "Archtecture ${cont_arch}"
+            echo "----------------------"
+        fi
+
+        list_conts=`ls -1 ${root_cont}/${cont_arch}-repo/cont`
+        for cont_name in $list_conts
+        do
+            cont_dir=${root_cont}/${cont_arch}-repo/cont/${cont_name}
+            cont_activ_dir=${root_cont}/${cont_arch}-repo/cont_activ/${cont_name}
+            cont_stat
+        done
+    done
+    }
+
+usage() { 
+    # help kommand keys
+    echo "Usage: $0 [-S]|[[-n <container name> & -a <architecture>]...[[-c | -r]|[-u | -d | -s]]]..[-C]"
+    echo "-S - view status all containers and ignore every key"
+    echo "-n <container name>"
+    echo "-a <intel architecture digit: 32 or 64>"
+    echo "-c - create container"
+    echo "-r - remove container"
+    echo "-u - up container"
+    echo "-d - down container"
+    echo "-s - status container"
+    echo "-C - CSV output"
+    echo "-h help"
+    }
+
+# getops for command keys
+S=false
+c=false
+r=false
+u=false
+d=false
+s=false
+C=false
+while getopts ":n:a:h S c r u d s C" o; do
+    case "${o}" in
+        n)
+            n=${OPTARG}
+            ;;
+        a)
+            a=${OPTARG}
+            ;;
+        h)
+            usage
+            exit 0
+            ;;
+        S)
+            S=true
+            ;;
+        c)
+            c=true
+            ;;
+        r)
+            r=true
+            ;;
+        u)
+            u=true
+            ;;
+        d)
+            d=true
+            ;;
+        s)
+            s=true
+            ;;
+        C)
+            C=true
+            ;;
+        *)
+            usage
+            echo "FAIL" >/dev/stderr
+            exit 1
+            ;;
+    esac
+done
+
+#run commands from keys
+CSV=${C}
+if [ "${S}" == true ];then
+    full_status
+    exit 0
+elif [ -n "${n}" ]&&[ -n "${a}" ];then
+
+    #setting values
+    cont_name=${n}
+    case ${a} in
+        32)
+            cont_arch="x86"
+            ;;
+        64)
+            cont_arch="x86_64"
+            ;;
+        *)
+            echo "ERROR: Intel architecture digit ${a} is not supportet"
+            usage
+            echo "FAIL" >/dev/stderr
+            exit 1
+            ;;
+    esac
+    cont_def=${root_cont}/${cont_arch}-repo/default_image
+    cont_dir=${root_cont}/${cont_arch}-repo/cont/${cont_name}
+    cont_activ_dir=${root_cont}/${cont_arch}-repo/cont_activ/${cont_name}
+    #test command
+    t_com=false
+    #select create or remove container
+    if [ "${c}" == true ]&&[ "${r}" == false ];then
+        cont_create
+        if [ $? -eq 0 ]&&[ "${d}" == false ]&&[ "${u}" == true ];then
+            cont_up
+            u=false
+        fi
+        t_com=true
+    elif [ "${c}" == false ]&&[ "${r}" == true ];then
+        if [ "${d}" == true ]&&[ "${u}" == false ];then
+            cont_down
+            d=false
+        fi
+        if [ $? -eq 0 ];then
+            cont_remove
+        fi
+        t_com=true
+    elif [ "${c}" == true ]&&[ "${r}" == true ];then
+        "ERROR: Create or Remove Container select please!"
+        usage
+        echo "FAIL" >/dev/stderr
+        exit 1
+    fi
+
+    #select up or down container
+    if [ "${u}" == true ]&&[ "${d}" == false ];then
+        cont_up
+        t_com=true
+    elif [ "${u}" == false ]&&[ "${d}" == true ];then
+        cont_down
+        t_com=true
+    elif [ "${u}" == true ]&&[ "${d}" == true ];then
+        "ERROR: Up or Down Container select please!"
+        usage
+        echo "FAIL" >/dev/stderr
+        exit 1
+    fi
+
+    #view status from container
+    if [ "${s}" == true ]||[ "${t_com}" == false ];then
+        cont_stat
+    fi
+    exit 0
+else
+    usage
+    echo "FAIL" >/dev/stderr
+    exit 1
+fi
+
+usage
+exit 0

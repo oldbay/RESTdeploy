@@ -1,0 +1,269 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: client\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2016-01-27 21:21+0300\n"
+"PO-Revision-Date: 2016-01-27 21:22+0300\n"
+"Last-Translator: olday <oldbay@bk.ru>\n"
+"Language-Team: ru_RU <LL@li.org>\n"
+"Language: ru_RU\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 1.5.5\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+
+#: client.py:57
+msgid "Position N {}"
+msgstr "Позиция № {}"
+
+#: client.py:88
+msgid "Create new login and password to client"
+msgstr "Создать новый логин и пароль для пользователя клиента"
+
+#: client.py:89
+msgid "Update password to server dataase for auth user"
+msgstr "Обновить пароль в базе данных сервера для пользователя"
+
+#: client.py:90
+msgid "Info from all jobs"
+msgstr "Информация о всех заданиях"
+
+#: client.py:91
+msgid "Set user login"
+msgstr "Указать логин пользователя"
+
+#: client.py:92
+msgid "Set user password"
+msgstr "Указать пароль пользователя"
+
+#: client.py:93
+msgid "Set job number for info in base of auth user"
+msgstr "Указать номер задания для принадлежащего авторизованному пользователю"
+
+#: client.py:103 client.py:119 client.py:138 client.py:172 client.py:197
+#: client.py:216 client.py:232 client.py:265 client.py:286 client.py:304
+#: client.py:317 client.py:330
+msgid "REST ERR: Server not available"
+msgstr "REST ERR: Сервер не доступен"
+
+#: client.py:107
+msgid "REST OK: Login and password added"
+msgstr "REST OK: Логин и пароль добавлены"
+
+#: client.py:109
+msgid "REST ERR {}: Create user false"
+msgstr "REST ERR {}: Ошбка создания пользователя"
+
+#: client.py:123
+msgid "REST OK: Password update"
+msgstr "REST OK: Пароль обновлён"
+
+#: client.py:125 client.py:202 client.py:221 client.py:270 client.py:291
+msgid "REST ERR {}: Authorization failed"
+msgstr "REST ERR {}: Ошибка авторизации"
+
+#: client.py:127
+msgid "REST ERR {}: Password update failed"
+msgstr "REST ERR {}: Ошибка обновления пароля"
+
+#: client.py:129 client.py:145 client.py:206 client.py:225 client.py:274
+#: client.py:295
+msgid "User name and password not found, authorization please"
+msgstr "Имя пользователя и пароль не обнаружены, пожалуйста авторизуйтесь"
+
+#: client.py:143 client.py:177 client.py:204 client.py:223 client.py:237
+#: client.py:272 client.py:293 client.py:309
+msgid "REST ERR {}: Request error"
+msgstr "REST ERR {}: Ошибка запроса"
+
+#: client.py:147
+msgid "Please select: Create(-C) or Update(-U) or Info(-I) only"
+msgstr "Пожалуйста используйте только: Create(-C) or Update(-U) or Info(-I)"
+
+#: client.py:152
+msgid "Get info from all jobs"
+msgstr "Получить информацию о всех заданиях"
+
+#: client.py:153
+msgid "Get info from all sources"
+msgstr "Получить информацию о всех исходниках"
+
+#: client.py:154
+msgid "Get info from all packages"
+msgstr "Получить информацию о всех пакетах"
+
+#: client.py:155
+msgid "Get verbose info"
+msgstr "Дать подробную информация"
+
+#: client.py:165
+msgid "Please select: Jobs(-J) or Sources(-S) or Packages(-P) only"
+msgstr "Пожалуйста используйте только: Jobs(-J) or Sources(-S) or Packages(-P)"
+
+#: client.py:182
+msgid "Create new source from git clone or update"
+msgstr "Создание или обновление каталога исходников"
+
+#: client.py:183
+msgid "Delete source catalog and packages derictories"
+msgstr "Удаление каталогов исходников и пакетов"
+
+#: client.py:184
+msgid "Version info from this source"
+msgstr "Информация о версиях данных исходников"
+
+#: client.py:185
+msgid "Set name as git link or source name"
+msgstr "Задать имя программы или git ссылки "
+
+#: client.py:200 client.py:219 client.py:268 client.py:289
+msgid "REST OK: Task queued"
+msgstr "REST OK: Задание добавлено в очередь"
+
+#: client.py:240
+msgid ""
+"Please select: Create(-C) or Delete(-D) or Info(-I) only and use name(-n)"
+msgstr ""
+"Пожалуйста используйте только: Create(-C) or Delete(-D) or Info(-I) при "
+"указании name(-n)"
+
+#: client.py:245
+msgid "Build packages from name, version and digit"
+msgstr "Сборка пакетов по имени, версии и разрядности"
+
+#: client.py:246
+msgid "Delete all file from name, digit (and version)"
+msgstr "Удалить все файлы по имени, разрядности (и версии)"
+
+#: client.py:247
+msgid "Files info from name, version and digit"
+msgstr "Информация о файлах по имени программы, версии и разрядности"
+
+#: client.py:248
+msgid "File view from file name, version and digit"
+msgstr "Просмотр файла по имени файла, имени программы, версии и разрядности"
+
+#: client.py:249
+msgid "Set programm name"
+msgstr "Задать имя программы"
+
+#: client.py:250
+msgid "Set programm version"
+msgstr "Задать версию программы"
+
+#: client.py:251
+msgid "Set programm digit"
+msgstr "Задать разрядность программы"
+
+#: client.py:335
+#, python-brace-format
+msgid "REST ERR {_state}: File {_file} not found"
+msgstr "REST ERR {_state}: Файл {_file} не обнаружен"
+
+#: client.py:338
+msgid "REST ERR POST {}: Request error"
+msgstr "REST ERR POST {}: Ошибка запроса"
+
+#: client.py:341
+msgid "ERR: File {} not log - not view"
+msgstr "ERR: Файл {} не является логом - нет просмотра"
+
+#: client.py:343
+msgid "REST ERR GET {}: Request error"
+msgstr "REST ERR GET {}: Ошибка запроса"
+
+#: client.py:346
+msgid "Please select: Build(-B) or Delete(-D) or Info(-I) or File(-F)"
+msgstr "Пожалуйста выберете: Build(-B) or Delete(-D) or Info(-I) or File(-F)"
+
+#: client.py:370
+msgid ""
+"\n"
+"        not valid comm string parameters\n"
+"        please use:\n"
+"            client.py user -h\n"
+"            client.py info -h\n"
+"            client.py src -h\n"
+"            client.py pkg -h\n"
+"        "
+msgstr ""
+"\n"
+"        неправильные параметры командной строки\n"
+"        пожалйста используйте:\n"
+"            client.py user -h\n"
+"            client.py info -h\n"
+"            client.py src -h\n"
+"            client.py pkg -h\n"
+"        "
+
+#: constant.py:7
+msgid "Name"
+msgstr "Имя"
+
+#: constant.py:8
+msgid "Version"
+msgstr "Версия"
+
+#: constant.py:9
+msgid "Architecture"
+msgstr "Архитектура"
+
+#: constant.py:10
+msgid "Digit"
+msgstr "Разрядность"
+
+#: constant.py:11
+msgid "Programm name"
+msgstr "Имя программы"
+
+#: constant.py:12
+msgid "File name"
+msgstr "Имя файла"
+
+#: constant.py:13
+msgid "File type"
+msgstr "Тип файла"
+
+#: constant.py:14
+msgid "Command string"
+msgstr "Командная строка"
+
+#: constant.py:15
+msgid "Log"
+msgstr "Лог"
+
+#: constant.py:16
+msgid "Job"
+msgstr "Задание"
+
+#: constant.py:17
+msgid "Jobs"
+msgstr "Задания"
+
+#: constant.py:18
+msgid "Queue"
+msgstr "Очередь"
+
+#: constant.py:19
+msgid "Status complit"
+msgstr "Статус выполнения"
+
+#: constant.py:20
+msgid "List Sources"
+msgstr "Список исходников"
+
+#: constant.py:21
+msgid "List Files"
+msgstr "Список файлов"
+
+#~ msgid "ERR: File {} not found"
+#~ msgstr "ERR: Файл {} не обнаружен"
+
+#~ msgid "help"
+#~ msgstr "Спасите"

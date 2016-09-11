@@ -1,0 +1,253 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: client\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2016-01-27 21:21+0300\n"
+"PO-Revision-Date: 2016-01-27 21:21+0300\n"
+"Last-Translator: olday <oldbay@bk.ru>\n"
+"Language-Team: en_US <oldbay@bk.ru>\n"
+"Language: en_US\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 1.5.5\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+
+#: client.py:57
+msgid "Position N {}"
+msgstr ""
+
+#: client.py:88
+msgid "Create new login and password to client"
+msgstr ""
+
+#: client.py:89
+msgid "Update password to server dataase for auth user"
+msgstr ""
+
+#: client.py:90
+msgid "Info from all jobs"
+msgstr ""
+
+#: client.py:91
+msgid "Set user login"
+msgstr ""
+
+#: client.py:92
+msgid "Set user password"
+msgstr ""
+
+#: client.py:93
+msgid "Set job number for info in base of auth user"
+msgstr ""
+
+#: client.py:103 client.py:119 client.py:138 client.py:172 client.py:197
+#: client.py:216 client.py:232 client.py:265 client.py:286 client.py:304
+#: client.py:317 client.py:330
+msgid "REST ERR: Server not available"
+msgstr ""
+
+#: client.py:107
+msgid "REST OK: Login and password added"
+msgstr ""
+
+#: client.py:109
+msgid "REST ERR {}: Create user false"
+msgstr ""
+
+#: client.py:123
+msgid "REST OK: Password update"
+msgstr ""
+
+#: client.py:125 client.py:202 client.py:221 client.py:270 client.py:291
+msgid "REST ERR {}: Authorization failed"
+msgstr ""
+
+#: client.py:127
+msgid "REST ERR {}: Password update failed"
+msgstr ""
+
+#: client.py:129 client.py:145 client.py:206 client.py:225 client.py:274
+#: client.py:295
+msgid "User name and password not found, authorization please"
+msgstr ""
+
+#: client.py:143 client.py:177 client.py:204 client.py:223 client.py:237
+#: client.py:272 client.py:293 client.py:309
+msgid "REST ERR {}: Request error"
+msgstr ""
+
+#: client.py:147
+msgid "Please select: Create(-C) or Update(-U) or Info(-I) only"
+msgstr ""
+
+#: client.py:152
+msgid "Get info from all jobs"
+msgstr ""
+
+#: client.py:153
+msgid "Get info from all sources"
+msgstr ""
+
+#: client.py:154
+msgid "Get info from all packages"
+msgstr ""
+
+#: client.py:155
+msgid "Get verbose info"
+msgstr ""
+
+#: client.py:165
+msgid "Please select: Jobs(-J) or Sources(-S) or Packages(-P) only"
+msgstr ""
+
+#: client.py:182
+msgid "Create new source from git clone or update"
+msgstr ""
+
+#: client.py:183
+msgid "Delete source catalog and packages derictories"
+msgstr ""
+
+#: client.py:184
+msgid "Version info from this source"
+msgstr ""
+
+#: client.py:185
+msgid "Set name as git link or source name"
+msgstr ""
+
+#: client.py:200 client.py:219 client.py:268 client.py:289
+msgid "REST OK: Task queued"
+msgstr ""
+
+#: client.py:240
+msgid ""
+"Please select: Create(-C) or Delete(-D) or Info(-I) only and use name(-n)"
+msgstr ""
+
+#: client.py:245
+msgid "Build packages from name, version and digit"
+msgstr ""
+
+#: client.py:246
+msgid "Delete all file from name, digit (and version)"
+msgstr ""
+
+#: client.py:247
+msgid "Files info from name, version and digit"
+msgstr ""
+
+#: client.py:248
+msgid "File view from file name, version and digit"
+msgstr ""
+
+#: client.py:249
+msgid "Set programm name"
+msgstr ""
+
+#: client.py:250
+msgid "Set programm version"
+msgstr ""
+
+#: client.py:251
+msgid "Set programm digit"
+msgstr ""
+
+#: client.py:335
+#, python-brace-format
+msgid "REST ERR {_state}: File {_file} not found"
+msgstr ""
+
+#: client.py:338
+msgid "REST ERR POST {}: Request error"
+msgstr ""
+
+#: client.py:341
+msgid "ERR: File {} not log - not view"
+msgstr ""
+
+#: client.py:343
+msgid "REST ERR GET {}: Request error"
+msgstr ""
+
+#: client.py:346
+msgid "Please select: Build(-B) or Delete(-D) or Info(-I) or File(-F)"
+msgstr ""
+
+#: client.py:370
+msgid ""
+"\n"
+"        not valid comm string parameters\n"
+"        please use:\n"
+"            client.py user -h\n"
+"            client.py info -h\n"
+"            client.py src -h\n"
+"            client.py pkg -h\n"
+"        "
+msgstr ""
+
+#: constant.py:7
+msgid "Name"
+msgstr ""
+
+#: constant.py:8
+msgid "Version"
+msgstr ""
+
+#: constant.py:9
+msgid "Architecture"
+msgstr ""
+
+#: constant.py:10
+msgid "Digit"
+msgstr ""
+
+#: constant.py:11
+msgid "Programm name"
+msgstr ""
+
+#: constant.py:12
+msgid "File name"
+msgstr ""
+
+#: constant.py:13
+msgid "File type"
+msgstr ""
+
+#: constant.py:14
+msgid "Command string"
+msgstr ""
+
+#: constant.py:15
+msgid "Log"
+msgstr ""
+
+#: constant.py:16
+msgid "Job"
+msgstr ""
+
+#: constant.py:17
+msgid "Jobs"
+msgstr ""
+
+#: constant.py:18
+msgid "Queue"
+msgstr ""
+
+#: constant.py:19
+msgid "Status complit"
+msgstr ""
+
+#: constant.py:20
+msgid "List Sources"
+msgstr ""
+
+#: constant.py:21
+msgid "List Files"
+msgstr ""
